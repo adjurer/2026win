@@ -1,0 +1,43 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+
+/* Slick carousel custom styles - 기본 도트 숨김 (Apple 스타일 커스텀 네비게이션 사용) */
+.slick-dots {
+  display: none !important;
+}
+
+/* Global scrollbar stability */
+html {
+  scrollbar-gutter: stable;
+  overflow-y: scroll;
+}
+
+/* Minimum width for mobile compatibility */
+body {
+  min-width: 320px;
+  overflow-x: hidden;
+}
+
+/* iOS Safari touch fix: 모든 button/a 요소가 터치에 즉시 반응하도록 */
+button, a, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* iOS Safari에서 fixed 요소 내 pointer-events 전파 보장 */
+.pointer-events-none {
+  -webkit-transform: translateZ(0);
+}
+
+/* Slick carousel mobile overflow fix */
+.slick-slider,
+.slick-list,
+.slick-track {
+  overflow: hidden;
+}
+
+/* Hide scrollbar for horizontal scroll containers (mobile candidate scroll) */
+.snap-x::-webkit-scrollbar {
+  display: none;
+}
