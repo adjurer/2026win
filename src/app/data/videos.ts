@@ -330,7 +330,7 @@ export const regionVideos: RegionVideos = {
       {
         id: 'suwon-1',
         videoId: 'dQw4w9WgXcQ',
-        title: '수원시 후보자 공개접',
+        title: '수원시 후보자 공개면접',
         candidate: '사서현',
         category: '공개면접',
       },

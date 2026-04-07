@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useNavigate, useOutletContext } from 'react-router';
 import { fetchViewCounts } from '../data/youtubeApi';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { ArrowLeft, Play, Eye, Briefcase, GraduationCap, Sparkles, FileText, ChevronDown } from 'lucide-react';
@@ -59,6 +59,7 @@ function SpeechIcon({ size = 20 }: { size?: number }) {
 export default function CandidateDetail() {
   const { candidateId } = useParams<{ candidateId: string }>();
   const navigate = useNavigate();
+  const { setCustomBackHandler } = useOutletContext<{ setCustomBackHandler: (fn: (() => void) | null) => void }>();
   const [videoModal, setVideoModal] = useState<{ videoId: string; title: string } | null>(null);
   const [hoveredVideoBtn, setHoveredVideoBtn] = useState<string | null>(null);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -120,6 +121,14 @@ export default function CandidateDetail() {
     }
   }, [navigate, regionId]);
 
+  // 플로팅 뒤로가기 버튼에 해당 지역 후보 목록 이동 핸들러 등록
+  useEffect(() => {
+    if (regionId) {
+      setCustomBackHandler(() => handleBack);
+    }
+    return () => setCustomBackHandler(null);
+  }, [regionId, setCustomBackHandler, handleBack]);
+
   // 더미 유튜브 영상 ID (추후 실제 영상으로 교체)
   const DUMMY_VIDEO_ID = 'dQw4w9WgXcQ';
 
@@ -154,8 +163,8 @@ export default function CandidateDetail() {
         icon: InterviewIcon,
         videoId: extractVideoId(candidate.interviewVideo),
         videoField: candidate.interviewVideo,
-        color: '#003da5',
-        bgGradient: 'linear-gradient(135deg, #003da5, #2fa4e7)',
+        color: '#002BFF',
+        bgGradient: 'linear-gradient(135deg, #002BFF, #2fa4e7)',
       },
       {
         key: 'debate',
@@ -201,7 +210,7 @@ export default function CandidateDetail() {
           <p className="text-xl text-gray-400 mb-4">후보자를 찾을 수 없습니다.</p>
           <button
             onClick={() => navigate('/')}
-            className="px-6 py-3 rounded-lg bg-[#003da5] text-white hover:bg-[#002a75] transition-colors cursor-pointer"
+            className="px-6 py-3 rounded-lg bg-[#002BFF] text-white hover:bg-[#0022cc] transition-colors cursor-pointer"
             style={{ fontWeight: 600 }}
           >
             홈으로 돌아가기
@@ -426,7 +435,7 @@ export default function CandidateDetail() {
                             <img src={`https://img.youtube.com/vi/${btn.videoId}/mqdefault.jpg`} alt={btn.label} className="w-full h-full object-cover" />
                             <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                               <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
-                                <Play size={18} className="text-[#003da5] ml-0.5" fill="#003da5" />
+                                <Play size={18} className="text-[#002BFF] ml-0.5" fill="#002BFF" />
                               </div>
                             </div>
                             <div className="absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] text-white" style={{ background: btn.bgGradient, fontWeight: 600 }}>{btn.label}</div>
@@ -603,23 +612,19 @@ export default function CandidateDetail() {
       {/* 하단 네비게이션 — 회색 전환 영역 */}
       <div className="bg-gradient-to-b from-[#f8f9fb] to-[#eef1f5] border-t border-gray-100">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <button
-              onClick={() => navigate(`/?region=${regionId}`)}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white shadow-sm border border-gray-100 text-[13px] text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
-              style={{ fontWeight: 600 }}
-            >
-              <ArrowLeft size={16} />
-              후보자 목록
-            </button>
+          <div className="flex justify-center items-center">
             <button
               onClick={() => navigate('/')}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-[13px] text-white cursor-pointer transition-all hover:shadow-lg"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-[13px] text-white cursor-pointer transition-all hover:shadow-lg hover:opacity-90"
               style={{
-                background: 'linear-gradient(135deg, #003da5, #2fa4e7)',
+                background: 'linear-gradient(135deg, #002BFF, #2fa4e7)',
                 fontWeight: 600,
               }}
             >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
+              </svg>
               홈으로
             </button>
           </div>
@@ -645,7 +650,7 @@ export default function CandidateDetail() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="w-16 h-16 rounded-full bg-[#f0f5ff] flex items-center justify-center mx-auto mb-4">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#003da5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#002BFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <polygon points="5 3 19 12 5 21 5 3" />
                 </svg>
               </div>

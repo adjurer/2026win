@@ -28,14 +28,19 @@ export default function Home() {
 
   // 초기 방문 시 지역 선택 모달
   const [showInitialModal, setShowInitialModal] = useState(false);
-  const [hasSelectedRegion, setHasSelectedRegion] = useState(false);
+  const [hasSelectedRegion, setHasSelectedRegion] = useState(() => localStorage.getItem('hasSelectedRegion') === 'true');
 
-  const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
-  const [selectedRegionName, setSelectedRegionName] = useState<string>('');
+  const [selectedRegion, setSelectedRegion] = useState<string | null>(() => localStorage.getItem('selectedRegion'));
+  const [selectedRegionName, setSelectedRegionName] = useState<string>(() => localStorage.getItem('selectedRegionName') || '');
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
-  const [flippedCardId, setFlippedCardId] = useState<string>('');
+  const [flippedCardId, _setFlippedCardId] = useState<string>('');
+  const flippedCardIdRef = useRef<string>('');
+  const setFlippedCardId = useCallback((id: string) => {
+    flippedCardIdRef.current = id;
+    _setFlippedCardId(id);
+  }, []);
   const [activeTab, setActiveTab] = useState<string>('공개면접');
   const [viewMode, setViewMode] = useState<'videos' | 'candidates'>('candidates');
 
@@ -50,7 +55,7 @@ export default function Home() {
 
   // === 자동 순회 상태 ===
   const [autoRotateIndex, setAutoRotateIndex] = useState(0);
-  const [isAutoRotating, setIsAutoRotating] = useState(true);
+  const [isAutoRotating, setIsAutoRotating] = useState(() => !localStorage.getItem('selectedRegion'));
   const [autoRegionId, setAutoRegionId] = useState<string | null>(null);
   const [autoRegionName, setAutoRegionName] = useState<string>('');
   const autoTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -115,6 +120,8 @@ export default function Home() {
   const [mobileCardIndex, setMobileCardIndex] = useState(0);
   // 모바일 좌우 스크롤 힌트
   const [mobileSwipeHint, setMobileSwipeHint] = useState(true);
+  // 오버레이 해제 후 일정 시간 동안 카드 인터랙션 차단 (레이스 컨디션 방지)
+  const swipeHintCooldownRef = useRef(false);
   // 선거 안내 팝업
   const [showInfoPopup, setShowInfoPopup] = useState(false);
   const [infoPopupType, setInfoPopupType] = useState<'vote' | 'station'>('vote');
@@ -126,6 +133,8 @@ export default function Home() {
     setViewMode('candidates');
     setIsAutoRotating(true);
     setFlippedCardId('');
+    localStorage.removeItem('selectedRegion');
+    localStorage.removeItem('selectedRegionName');
     // URL에서 region 파라미터 제거 (useEffect 재트리거 방지)
     navigate('/', { replace: true });
   }, [navigate]);
@@ -150,16 +159,20 @@ export default function Home() {
         setHasSelectedRegion(true);
         setViewMode('candidates');
         setIsAutoRotating(false);
+        localStorage.setItem('hasSelectedRegion', 'true');
+        localStorage.setItem('selectedRegion', found.id);
+        localStorage.setItem('selectedRegionName', found.name);
       }
     }
   }, [regionFromUrl]);
 
-  // 초기 방문 시 모달 표시
+  // 초기 방문 시 모달 표시 — localStorage 직접 확인으로 이중 방어
   useEffect(() => {
-    if (!regionFromUrl && !hasSelectedRegion) {
-      const timer = setTimeout(() => setShowInitialModal(true), 600);
-      return () => clearTimeout(timer);
-    }
+    if (regionFromUrl) return;
+    if (localStorage.getItem('hasSelectedRegion') === 'true') return;
+    if (hasSelectedRegion) return;
+    const timer = setTimeout(() => setShowInitialModal(true), 600);
+    return () => clearTimeout(timer);
   }, [regionFromUrl, hasSelectedRegion]);
 
   // === 캐러셀 배너 자동 재생 타이머 ===
@@ -244,6 +257,14 @@ export default function Home() {
     setViewMode('candidates');
     setFlippedCardId('');
     setMobileSwipeHint(true);
+    if (regionId) {
+      localStorage.setItem('selectedRegion', regionId);
+      localStorage.setItem('selectedRegionName', regionName);
+      localStorage.setItem('hasSelectedRegion', 'true');
+    } else {
+      localStorage.removeItem('selectedRegion');
+      localStorage.removeItem('selectedRegionName');
+    }
   }, []);
 
   const handleToggleAutoRotate = useCallback(() => {
@@ -326,12 +347,17 @@ export default function Home() {
     setSelectedRegionName(regionName);
     setViewMode('candidates');
     setIsAutoRotating(false);
+    setFlippedCardId('');
     setMobileSwipeHint(true);
+    localStorage.setItem('hasSelectedRegion', 'true');
+    localStorage.setItem('selectedRegion', regionId);
+    localStorage.setItem('selectedRegionName', regionName);
   };
 
   const handleInitialSkip = () => {
     setShowInitialModal(false);
     setHasSelectedRegion(true);
+    localStorage.setItem('hasSelectedRegion', 'true');
   };
 
   const currentRegionData = selectedRegion ? regionVideos[selectedRegion] : null;
@@ -345,6 +371,12 @@ export default function Home() {
   const displayCandidates = useMemo(
     () => (displayRegionId ? getCandidatesByRegion(displayRegionId) : []),
     [displayRegionId]
+  );
+
+  // 선택된 지역 후보자 메모이제이션 (렌더당 반복 호출 방지)
+  const selectedCandidates = useMemo(
+    () => (selectedRegion ? getCandidatesByRegion(selectedRegion) : []),
+    [selectedRegion]
   );
 
   // 자동 순회 or 수동 선택 시 역대 전적 데이터
@@ -398,12 +430,12 @@ export default function Home() {
     const isExpanded = expandedCategories[category] || false;
     if (videos.length > 4 && !isExpanded) {
       return (
-        <button className="px-16 py-2.5 rounded-lg border-2 border-[#003da5]/20 text-[#003da5] hover:bg-[#003da5]/5 transition-colors cursor-pointer text-sm" style={{ fontWeight: 600 }} onClick={() => setExpandedCategories(prev => ({ ...prev, [category]: true }))}>더보기</button>
+        <button className="px-16 py-2.5 rounded-lg border-2 border-[#002BFF]/20 text-[#002BFF] hover:bg-[#002BFF]/5 transition-colors cursor-pointer text-sm" style={{ fontWeight: 600 }} onClick={() => setExpandedCategories(prev => ({ ...prev, [category]: true }))}>더보기</button>
       );
     }
     if (videos.length > 4 && isExpanded) {
       return (
-        <button className="px-16 py-2.5 rounded-lg border-2 border-[#003da5]/20 text-[#003da5] hover:bg-[#003da5]/5 transition-colors cursor-pointer text-sm" style={{ fontWeight: 600 }} onClick={() => setExpandedCategories(prev => ({ ...prev, [category]: false }))}>접기</button>
+        <button className="px-16 py-2.5 rounded-lg border-2 border-[#002BFF]/20 text-[#002BFF] hover:bg-[#002BFF]/5 transition-colors cursor-pointer text-sm" style={{ fontWeight: 600 }} onClick={() => setExpandedCategories(prev => ({ ...prev, [category]: false }))}>접기</button>
       );
     }
     return null;
@@ -722,8 +754,8 @@ export default function Home() {
                   {!selectedRegion ? (
                     /* 전체보기: 지역 그리드 */
                     <div
-                      className="w-full h-full"
-                      style={{ touchAction: 'none' }}
+                      className="w-full h-full select-none"
+                      style={{ touchAction: 'none', WebkitTapHighlightColor: 'transparent' }}
                       onTouchStart={(e) => {
                         regionTouchRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY };
                       }}
@@ -758,7 +790,7 @@ export default function Home() {
                                 const candidates = getCandidatesByRegion(region.id);
                                 const count = candidates.length;
                                 return (
-                                  <button
+                                  <div
                                     key={region.id}
                                     onClick={() => {
                                       setSelectedRegion(region.id);
@@ -767,16 +799,17 @@ export default function Home() {
                                       setIsAutoRotating(false);
                                       setMobileSwipeHint(true);
                                     }}
-                                    className="flex flex-col items-center justify-center py-2 px-2 rounded-xl border border-gray-100 bg-white hover:border-[#003da5]/30 hover:bg-[#f0f5ff] transition-all cursor-pointer"
-                                    style={{ minHeight: '50px' }}
+                                    className="flex flex-col items-center justify-center py-2 px-2 rounded-xl border border-gray-100 bg-white hover:border-[#002BFF]/30 hover:bg-[#f0f5ff] transition-all cursor-pointer"
+                                    style={{ minHeight: '50px', WebkitTapHighlightColor: 'transparent' }}
+                                    role="button"
                                   >
                                     <span className="text-[13px] text-gray-800" style={{ fontWeight: 600 }}>{region.name}</span>
                                     {count > 0 ? (
-                                      <span className="text-[11px] text-[#003da5] mt-0.5" style={{ fontWeight: 500 }}>{count}명</span>
+                                      <span className="text-[11px] text-[#002BFF] mt-0.5" style={{ fontWeight: 500 }}>{count}명</span>
                                     ) : (
                                       <span className="text-[10px] text-gray-300 mt-0.5" style={{ fontWeight: 400 }}>준비중</span>
                                     )}
-                                  </button>
+                                  </div>
                                 );
                               })}
                             </div>
@@ -784,23 +817,23 @@ export default function Home() {
                         ))}
                       </div>
                     </div>
-                  ) : getCandidatesByRegion(selectedRegion).length > 0 ? (
+                  ) : selectedCandidates.length > 0 ? (
                     /* 지역 선택: 카드 스와이퍼 */
                     <div className="w-full h-full flex flex-col relative">
                       {/* 진행바 — 카드 영역 내부 상단, 카드 폭(60%) 중앙 정렬 */}
-                      {getCandidatesByRegion(selectedRegion).length > 1 && (
+                      {selectedCandidates.length > 1 && (
                         <div className="flex flex-col items-center pt-1 pb-0.5 shrink-0">
                           <div className="h-[3px] bg-gray-100 rounded-full overflow-hidden" style={{ width: '30%' }}>
                             <div
                               className="h-full rounded-full transition-all duration-300 ease-out"
                               style={{
-                                width: `${((mobileCardIndex + 1) / getCandidatesByRegion(selectedRegion).length) * 100}%`,
+                                width: `${((mobileCardIndex + 1) / selectedCandidates.length) * 100}%`,
                                 background: 'linear-gradient(90deg, #003da5, #43e8d8)',
                               }}
                             />
                           </div>
                           <span className="text-[11px] text-gray-400 tabular-nums mt-0.5" style={{ fontWeight: 500 }}>
-                            ({String(mobileCardIndex + 1).padStart(2, '0')}/{String(getCandidatesByRegion(selectedRegion).length).padStart(2, '0')})
+                            ({String(mobileCardIndex + 1).padStart(2, '0')}/{String(selectedCandidates.length).padStart(2, '0')})
                           </span>
                         </div>
                       )}
@@ -817,22 +850,38 @@ export default function Home() {
                             setMobileCardIndex(idx);
                             setFlippedCardId('');
                           }}
-                          onUserSwipe={() => setMobileSwipeHint(false)}
+                          onUserSwipe={() => {
+                            setMobileSwipeHint(false);
+                            swipeHintCooldownRef.current = true;
+                            setTimeout(() => { swipeHintCooldownRef.current = false; }, 300);
+                          }}
+                          onDragStart={() => setFlippedCardId('')}
+                          onTap={(idx) => {
+                            const c = selectedCandidates[idx];
+                            if (!c) return;
+                            if (mobileSwipeHint) setMobileSwipeHint(false);
+                            if (flippedCardIdRef.current === c.id) {
+                              navigate(`/candidate/${c.id}`);
+                            } else {
+                              setFlippedCardId(c.id);
+                            }
+                          }}
                         >
-                          {getCandidatesByRegion(selectedRegion).map((candidate) => (
+                          {selectedCandidates.map((candidate) => (
                             <CandidateCard
                               key={candidate.id}
                               candidate={candidate}
-                              onClick={() => { if (!mobileSwipeHint) navigate(`/candidate/${candidate.id}`); }}
+                              onClick={() => navigate(`/candidate/${candidate.id}`)}
                               cardSize="lg"
                               flippedCardId={flippedCardId}
-                              onFlipCard={(id) => { if (!mobileSwipeHint) setFlippedCardId(id); }}
+                              onFlipCard={setFlippedCardId}
+                              disableInternalTouch
                             />
                           ))}
                         </CardSwiper>
                       </div>
                       {/* 좌우 그라데이션 + 스크롤 힌트 */}
-                      {getCandidatesByRegion(selectedRegion).length > 1 && (
+                      {selectedCandidates.length > 1 && (
                         <div
                           className="absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-600"
                           style={{
@@ -846,10 +895,10 @@ export default function Home() {
                         >
                           <div className="flex flex-col items-center gap-2">
                             <div className="flex items-center gap-3 animate-pulse">
-                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#003da5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#002BFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M15 18l-6-6 6-6" />
                               </svg>
-                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#003da5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#002BFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M9 18l6-6-6-6" />
                               </svg>
                             </div>
@@ -860,29 +909,44 @@ export default function Home() {
                               좌우로 스크롤하세요
                             </span>
                             <span className="text-[12px] text-gray-400 mt-0.5" style={{ fontWeight: 400 }}>
-                              후보자 {getCandidatesByRegion(selectedRegion).length}명
+                              후보자 {selectedCandidates.length}명
                             </span>
                           </div>
                         </div>
                       )}
                     </div>
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <p className="text-gray-400">이 지역의 후보자 정보가 아직 등록되지 않았습니다.</p>
+                    <div className="w-full h-full flex flex-col items-center justify-center gap-3 px-4">
+                      <div className="w-14 h-14 rounded-full bg-gray-50 flex items-center justify-center">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="12" y1="8" x2="12" y2="12" />
+                          <line x1="12" y1="16" x2="12.01" y2="16" />
+                        </svg>
+                      </div>
+                      <p className="text-[14px] text-gray-500 text-center" style={{ fontWeight: 600 }}>이 지역의 예비후보가 아직 없습니다</p>
+                      <p className="text-[12px] text-gray-400 text-center">후보자 등록 후 업데이트 예정입니다</p>
+                      <button
+                        onClick={() => { setSelectedRegion(null); setSelectedRegionName(''); setIsAutoRotating(true); }}
+                        className="mt-1 px-5 py-2 rounded-full text-[12px] text-white cursor-pointer transition-all hover:opacity-90"
+                        style={{ background: '#002BFF', fontWeight: 600 }}
+                      >
+                        다른 지역 보기
+                      </button>
                     </div>
                   )}
                 </div>
                 {/* 도트 인디케이터 — 카드 영역 아래 배치 */}
-                <div className="flex items-center justify-center mt-1 py-0.5">
+                <div className="flex items-center justify-center mt-1 py-0.5 select-none">
                   {!selectedRegion ? (
                     <AppleDots
                       total={regionPages.length}
                       current={regionPage}
                       onDotClick={(idx) => setRegionPage(idx)}
                     />
-                  ) : getCandidatesByRegion(selectedRegion).length > 0 ? (
+                  ) : selectedCandidates.length > 0 ? (
                     <AppleDots
-                      total={getCandidatesByRegion(selectedRegion).length}
+                      total={selectedCandidates.length}
                       current={mobileCardIndex}
                     />
                   ) : (
@@ -951,11 +1015,11 @@ export default function Home() {
               ) : selectedRegion ? (
                 viewMode === 'candidates' ? (
                   <div className="hidden md:flex flex-col flex-1 pb-2">
-                    {getCandidatesByRegion(selectedRegion).length > 0 ? (
+                    {selectedCandidates.length > 0 ? (
                       <>
                         {/* 데스크탑: 그리드 레이아웃 */}
                         <div className="hidden lg:grid gap-3 h-full grid-cols-3 grid-rows-3">
-                          {getCandidatesByRegion(selectedRegion).map((candidate) => (
+                          {selectedCandidates.map((candidate) => (
                             <CandidateCard
                               key={candidate.id}
                               candidate={candidate}
@@ -968,14 +1032,14 @@ export default function Home() {
                         </div>
 
                         {/* 태블릿(md~lg): 세로 스크롤 카드 리스트 */}
-                        {getCandidatesByRegion(selectedRegion).length > 0 && (
+                        {selectedCandidates.length > 0 && (
                           <TabletScrollHint
                             key={selectedRegion}
-                            itemCount={getCandidatesByRegion(selectedRegion).length}
+                            itemCount={selectedCandidates.length}
                             className="hidden md:block lg:hidden"
                           >
                             <div className="grid grid-cols-2 gap-3 pl-1 pt-1 pb-4">
-                              {getCandidatesByRegion(selectedRegion).map((candidate) => (
+                              {selectedCandidates.map((candidate) => (
                                 <div key={candidate.id} style={{ height: '205px' }}>
                                   <CandidateCard
                                     candidate={candidate}
@@ -991,8 +1055,23 @@ export default function Home() {
                         )}
                       </>
                     ) : (
-                      <div className="flex-1 flex items-center justify-center">
-                        <p className="text-gray-400">이 지역의 후보자 정보가 아직 등록되지 않았습니다.</p>
+                      <div className="flex-1 flex flex-col items-center justify-center gap-3">
+                        <div className="w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center">
+                          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                          </svg>
+                        </div>
+                        <p className="text-[15px] text-gray-500" style={{ fontWeight: 600 }}>이 지역의 예비후보가 아직 없습니다</p>
+                        <p className="text-[13px] text-gray-400">후보자 등록 후 업데이트 예정입니다</p>
+                        <button
+                          onClick={() => { setSelectedRegion(null); setSelectedRegionName(''); setIsAutoRotating(true); navigate('/', { replace: true }); }}
+                          className="mt-1 px-6 py-2.5 rounded-full text-[13px] text-white cursor-pointer transition-all hover:opacity-90"
+                          style={{ background: '#002BFF', fontWeight: 600 }}
+                        >
+                          다른 지역 보기
+                        </button>
                       </div>
                     )}
                   </div>
@@ -1000,10 +1079,10 @@ export default function Home() {
                   currentRegionData && (
                     <div className="flex flex-col flex-1">
                       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col">
-                        <TabsList className="grid w-full grid-cols-3 mb-8 bg-[#003da5]/10">
-                          <TabsTrigger value="공개면접" className="data-[state=active]:bg-[#003da5] data-[state=active]:text-white">공개면접</TabsTrigger>
-                          <TabsTrigger value="합동토론회" className="data-[state=active]:bg-[#003da5] data-[state=active]:text-white">합동토론회</TabsTrigger>
-                          <TabsTrigger value="합동연설회" className="data-[state=active]:bg-[#003da5] data-[state=active]:text-white">합동연설회</TabsTrigger>
+                        <TabsList className="grid w-full grid-cols-3 mb-8 bg-[#002BFF]/10">
+                          <TabsTrigger value="공개면접" className="data-[state=active]:bg-[#002BFF] data-[state=active]:text-white">공개면접</TabsTrigger>
+                          <TabsTrigger value="합동토론회" className="data-[state=active]:bg-[#002BFF] data-[state=active]:text-white">합동토론회</TabsTrigger>
+                          <TabsTrigger value="합동연설회" className="data-[state=active]:bg-[#002BFF] data-[state=active]:text-white">합동연설회</TabsTrigger>
                         </TabsList>
                         <TabsContent value="공개면접" className="flex flex-col flex-1">{renderVideoGrid('공개면접')}</TabsContent>
                         <TabsContent value="합동토론회" className="flex flex-col flex-1">{renderVideoGrid('합동토론회')}</TabsContent>
@@ -1035,7 +1114,7 @@ export default function Home() {
           </h3>
           <div className="flex items-center gap-2 mb-5">
             <span className="inline-flex items-center gap-2 px-5 py-3 rounded-full border border-gray-200 bg-white text-[13px] md:text-[14px] text-gray-600 shadow-sm" style={{ fontWeight: 500 }}>
-              <span style={{ fontWeight: 700, color: '#003da5' }}>[선거 운동 기간]</span>
+              <span style={{ fontWeight: 700, color: '#002BFF' }}>[선거 운동 기간]</span>
               2026.05.21 ~ 2026.06.02
             </span>
           </div>
@@ -1047,7 +1126,7 @@ export default function Home() {
             >
               <div className="relative z-10">
                 <h4 className="text-white text-[22px] md:text-[25px] mb-2" style={{ fontWeight: 800 }}>투표방법</h4>
-                <p className="text-white/90 text-[14px] md:text-[15px]" style={{ fontWeight: 500 }}>선거구 확정 이후 확인 가능합니다.</p>
+                <p className="text-white/90 text-[14px] md:text-[15px]" style={{ fontWeight: 500 }}>사전투표·본투표 일정과 절차를 안내해 드립니다.</p>
               </div>
               <div className="absolute top-3 right-3 w-24 h-24 md:w-[115px] md:h-[115px] opacity-20">
                 <svg viewBox="0 0 100 100" fill="none"><rect x="15" y="30" width="70" height="55" rx="6" stroke="white" strokeWidth="3" /><rect x="30" y="10" width="40" height="30" rx="4" stroke="white" strokeWidth="3" /><line x1="35" y1="50" x2="65" y2="50" stroke="white" strokeWidth="3" /><line x1="50" y1="35" x2="50" y2="65" stroke="white" strokeWidth="3" /></svg>
@@ -1060,7 +1139,7 @@ export default function Home() {
             >
               <div className="relative z-10">
                 <h4 className="text-white text-[22px] md:text-[25px] mb-2" style={{ fontWeight: 800 }}>내 투표소 찾기</h4>
-                <p className="text-white/90 text-[14px] md:text-[15px]" style={{ fontWeight: 500 }}>선거구 확정 이후 확인 가능합니다.</p>
+                <p className="text-white/90 text-[14px] md:text-[15px]" style={{ fontWeight: 500 }}>가까운 투표소를 지도에서 찾아드립니다.</p>
               </div>
               <div className="absolute top-3 right-3 w-24 h-24 md:w-[115px] md:h-[115px] opacity-20">
                 <svg viewBox="0 0 100 100" fill="none"><circle cx="45" cy="40" r="25" stroke="white" strokeWidth="3" /><line x1="62" y1="58" x2="82" y2="78" stroke="white" strokeWidth="4" strokeLinecap="round" /><circle cx="45" cy="40" r="8" stroke="white" strokeWidth="3" /></svg>
@@ -1083,6 +1162,11 @@ export default function Home() {
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center"
           onClick={() => setShowInfoPopup(false)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setShowInfoPopup(false); }}
+          role="dialog"
+          aria-modal="true"
+          tabIndex={-1}
+          ref={(el) => el?.focus()}
         >
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
           <div
@@ -1116,7 +1200,7 @@ export default function Home() {
             {/* 본문 */}
             <div className="px-6 py-8 flex flex-col items-center text-center gap-4">
               <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: '#f0f5ff' }}>
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#003da5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#002BFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="8" x2="12" y2="12" />
                   <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -1126,7 +1210,7 @@ export default function Home() {
                 선거구 확정 이후 확인 가능합니다
               </p>
               <div className="flex items-center gap-2 mt-1">
-                <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[12px] text-[#003da5]" style={{ background: '#f0f5ff', fontWeight: 600 }}>
+                <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[12px] text-[#002BFF]" style={{ background: '#f0f5ff', fontWeight: 600 }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                     <line x1="16" y1="2" x2="16" y2="6" />

@@ -9,19 +9,31 @@
 
 /* Global scrollbar stability */
 html {
-  scrollbar-gutter: stable;
   overflow-y: scroll;
+  background-color: #f5f7fa;
+}
+
+@media (min-width: 768px) {
+  html {
+    scrollbar-gutter: stable;
+  }
 }
 
 /* Minimum width for mobile compatibility */
 body {
   min-width: 320px;
   overflow-x: hidden;
+  background-color: #f5f7fa;
+  margin: 0;
+  padding: 0;
 }
 
-/* iOS Safari touch fix: 모든 button/a 요소가 터치에 즉시 반응하도록 */
-button, a, [role="button"] {
+/* iOS Safari touch fix: 모든 요소에서 탭 하이라이트 완전 제거 */
+* {
   -webkit-tap-highlight-color: transparent;
+}
+
+button, a, [role="button"] {
   touch-action: manipulation;
 }
 

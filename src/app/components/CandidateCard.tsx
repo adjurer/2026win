@@ -11,6 +11,8 @@ interface CandidateCardProps {
   /** 부모가 관리하는 플립 상태 (터치 디바이스에서 한 카드만 뒤집기) */
   flippedCardId?: string;
   onFlipCard?: (candidateId: string) => void;
+  /** CardSwiper 내부에서 사용 시: 자체 터치/클릭 처리 비활성화 (부모가 onTap으로 처리) */
+  disableInternalTouch?: boolean;
 }
 
 /**
@@ -79,8 +81,9 @@ function AutoFitText({
   );
 }
 
-export function CandidateCard({ candidate, onClick, cardSize = 'lg', flippedCardId, onFlipCard }: CandidateCardProps) {
+export function CandidateCard({ candidate, onClick, cardSize = 'lg', flippedCardId, onFlipCard, disableInternalTouch }: CandidateCardProps) {
   const [localHovered, setLocalHovered] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
   const isTouchRef = useRef(false);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const isCompact = cardSize === 'sm' || cardSize === 'md';
@@ -131,11 +134,11 @@ export function CandidateCard({ candidate, onClick, cardSize = 'lg', flippedCard
 
   const handleMouseEnter = useCallback(() => {
     if (!isTouchRef.current) setIsHovered(true);
-  }, []);
+  }, [setIsHovered]);
 
   const handleMouseLeave = useCallback(() => {
     if (!isTouchRef.current) setIsHovered(false);
-  }, []);
+  }, [setIsHovered]);
 
   // === 앞면 스타일 ===
   const frontPadding = cardSize === 'sm' ? 'px-3 py-2.5'
@@ -203,9 +206,9 @@ export function CandidateCard({ candidate, onClick, cardSize = 'lg', flippedCard
       className="relative cursor-pointer h-full"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onClick={handleClick}
+      onTouchStart={disableInternalTouch ? undefined : handleTouchStart}
+      onTouchEnd={disableInternalTouch ? undefined : handleTouchEnd}
+      onClick={disableInternalTouch ? undefined : handleClick}
       role="button"
       tabIndex={0}
       style={{ perspective: '800px', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
@@ -238,11 +241,15 @@ export function CandidateCard({ candidate, onClick, cardSize = 'lg', flippedCard
                 >
                   <div className="w-full h-full rounded-full overflow-hidden bg-white p-[2px]">
                     <div className="relative w-full h-full rounded-full overflow-hidden" style={{ backgroundColor: '#e8ecf2' }}>
+                      {!imgLoaded && (
+                        <div className="absolute inset-0 rounded-full animate-pulse" style={{ background: 'linear-gradient(135deg, #e8ecf2 25%, #f0f3f7 50%, #e8ecf2 75%)', backgroundSize: '200% 100%' }} />
+                      )}
                       <img
                         src={candidate.imageUrl}
                         alt={candidate.name}
                         className="w-full h-full rounded-full object-cover"
-                        style={{ objectPosition: 'center 15%' }}
+                        style={{ objectPosition: 'center 15%', opacity: imgLoaded ? 1 : 0, transition: 'opacity 0.3s ease' }}
+                        onLoad={() => setImgLoaded(true)}
                       />
                       <div
                         className="absolute bottom-0 left-0 right-0 h-[30%] rounded-b-full pointer-events-none"

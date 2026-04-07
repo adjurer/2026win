@@ -158,7 +158,7 @@ export function FloatingButtons({ footerRef, onBack }: FloatingButtonsProps) {
             }}
             className="w-[48px] h-[48px] md:w-[52px] md:h-[52px] rounded-full shadow-lg cursor-pointer transition-all duration-300 hover:scale-110 hover:shadow-xl flex items-center justify-center text-white"
             style={{
-              backgroundColor: '#003da5',
+              backgroundColor: '#002BFF',
               WebkitTapHighlightColor: 'transparent',
               touchAction: 'manipulation',
             }}

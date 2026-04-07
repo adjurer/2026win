@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { ALL_REGIONS } from './GyeonggiMap';
 
 interface RegionSelectModalProps {
@@ -12,6 +12,44 @@ export function RegionSelectModal({ isOpen, onSelect, onSkip }: RegionSelectModa
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Focus trap
+  useEffect(() => {
+    if (!isOpen || !modalRef.current) return;
+    const modal = modalRef.current;
+    const previousFocus = document.activeElement as HTMLElement;
+
+    const getFocusable = () => modal.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onSkip(); return; }
+      if (e.key !== 'Tab') return;
+      const focusable = getFocusable();
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault(); first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    // Auto-focus first button
+    requestAnimationFrame(() => {
+      const focusable = getFocusable();
+      if (focusable.length > 0) focusable[0].focus();
+    });
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      previousFocus?.focus?.();
+    };
+  }, [isOpen, onSkip]);
 
   const selectedLabel = selectedRegion
     ? ALL_REGIONS.find(r => r.id === selectedRegion)?.name || '경기도 시/군 선택'
@@ -65,7 +103,7 @@ export function RegionSelectModal({ isOpen, onSelect, onSkip }: RegionSelectModa
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onSkip} />
 
       {/* Modal */}
-      <div className="relative z-10 bg-white rounded-2xl shadow-2xl w-[90%] max-w-[420px] p-8 md:p-10 mx-4">
+      <div ref={modalRef} className="relative z-10 bg-white rounded-2xl shadow-2xl w-[90%] max-w-[420px] p-8 md:p-10 mx-4" role="dialog" aria-modal="true" aria-label="지역 선택">
         {/* Title */}
         <h2 className="text-center text-[20px] md:text-[22px] text-gray-900 mb-2" style={{ fontWeight: 700 }}>
           거주지가 어디시나요?
@@ -82,7 +120,7 @@ export function RegionSelectModal({ isOpen, onSelect, onSkip }: RegionSelectModa
             className="w-full flex items-center justify-between cursor-pointer outline-none transition-all duration-200"
             style={{
               padding: '14px 16px',
-              border: isDropdownOpen ? '2px solid #003da5' : '2px solid #d1d5db',
+              border: isDropdownOpen ? '2px solid #002BFF' : '2px solid #d1d5db',
               borderRadius: '6px',
               background: '#fff',
               color: selectedRegion ? '#1f2937' : '#9ca3af',
@@ -101,7 +139,7 @@ export function RegionSelectModal({ isOpen, onSelect, onSkip }: RegionSelectModa
               height="16"
               viewBox="0 0 24 24"
               fill="none"
-              stroke={isDropdownOpen ? '#003da5' : '#9ca3af'}
+              stroke={isDropdownOpen ? '#002BFF' : '#9ca3af'}
               strokeWidth="2.5"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -137,7 +175,7 @@ export function RegionSelectModal({ isOpen, onSelect, onSkip }: RegionSelectModa
                       style={{
                         padding: '13px 18px',
                         fontSize: '14px',
-                        color: isActive ? '#003da5' : '#374151',
+                        color: isActive ? '#002BFF' : '#374151',
                         fontWeight: isActive ? 700 : 400,
                         backgroundColor: isActive ? '#f0f5ff' : 'transparent',
                         borderBottom: isLast ? 'none' : '1px solid #f0f0f0',

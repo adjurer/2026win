@@ -12,6 +12,14 @@ export default function Layout() {
   const footerRef = useRef<HTMLElement>(null);
   const [customBackHandler, setCustomBackHandler] = useState<(() => void) | null>(null);
 
+  // 라우트 변경 시 항상 스크롤 최상단으로 리셋
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [location.pathname, location.search]);
+
   // PC 비율 축소: 1024px ~ DESIGN_WIDTH 구간에서 zoom 적용
   // iOS Safari 등 터치 디바이스에서는 zoom이 터치 좌표를 깨뜨리므로 비활성화
   const DESIGN_WIDTH = 1280;
@@ -38,13 +46,6 @@ export default function Layout() {
       window.removeEventListener('resize', updateZoom);
     };
   }, []);
-
-  // 라우트 변경 시 항상 상단으로 스크롤 (모든 페이지 전환에 공통 적용)
-  useEffect(() => {
-    window.scrollTo({ top: 0 });
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-  }, [location.pathname]);
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f5f7fa]">
@@ -107,12 +108,12 @@ export default function Layout() {
             >
               {/* PC: 한 줄에 | 구분, 모바일: 세 줄 */}
               <span className="hidden md:inline">
-                지도 데이터: southkorea-maps (GitHub)&nbsp;&nbsp;|&nbsp;&nbsp;모든 영상은 유튜브에서 제공됩니다.&nbsp;&nbsp;|&nbsp;&nbsp;각 후보자의 데이터는 중앙선거관리위원회·더불어민주당 특별 홈페이지에서 확인하실 수 있습니다.
+                지도 데이터: southkorea-maps (GitHub)&nbsp;&nbsp;|&nbsp;&nbsp;모든 영상은 유튜브에서 제공됩니다.&nbsp;&nbsp;|&nbsp;&nbsp;후보자 정보는 중앙선거관리위원회·더불어민주당 특별 홈페이지에서도 확인 가능합니다.
               </span>
-              <span className="md:hidden" style={{ display: undefined }}>
+              <span className="md:hidden">
                 지도 데이터: southkorea-maps (GitHub)<br />
                 모든 영상은 유튜브에서 제공됩니다.<br />
-                각 후보자의 데이터는 중앙선거관리위원회·더불어민주당 특별 홈페이지에서 확인하실 수 있습니다.
+                후보자 정보는 중앙선거관리위원회·더불어민주당 특별 홈페이지에서도 확인 가능합니다.
               </span>
             </p>
           </div>
@@ -138,7 +139,7 @@ export default function Layout() {
                 &nbsp;&nbsp;|&nbsp;&nbsp;팩스 : 031-244-6502
               </p>
               <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', marginTop: '4px', marginBottom: 0 }}>
-                &copy; 2018 더불어민주당경기도당. All rights reserved.
+                &copy; 2018–2026 더불어민주당경기도당. All rights reserved.
               </p>
             </div>
             <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
@@ -159,7 +160,7 @@ export default function Layout() {
                 전화 : 031-244-6501 / 팩스 : 031-244-6502
               </p>
               <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', marginTop: '3px', marginBottom: 0 }}>
-                &copy; 2018 더불어민주당경기도당. All rights reserved.
+                &copy; 2018–2026 더불어민주당경기도당. All rights reserved.
               </p>
             </div>
           </div>

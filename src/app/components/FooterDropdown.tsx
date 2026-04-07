@@ -57,7 +57,7 @@ export function FooterDropdown() {
         style={{
           minWidth: '120px',
           padding: '10px 14px 10px 18px',
-          border: isOpen ? '2px solid #003da5' : '2px solid #d1d5db',
+          border: isOpen ? '2px solid #002BFF' : '2px solid #d1d5db',
           borderRadius: '6px',
           background: '#fff',
           color: '#9ca3af',
@@ -73,7 +73,7 @@ export function FooterDropdown() {
           height="16"
           viewBox="0 0 24 24"
           fill="none"
-          stroke={isOpen ? '#003da5' : '#9ca3af'}
+          stroke={isOpen ? '#002BFF' : '#9ca3af'}
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"

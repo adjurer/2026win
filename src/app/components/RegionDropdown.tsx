@@ -73,7 +73,7 @@ export function RegionDropdown({ regions, value, onChange, placeholder = '전체
         style={{
           minWidth: '120px',
           padding: '10px 14px 10px 18px',
-          border: isOpen ? '2px solid #003da5' : '2px solid #d1d5db',
+          border: isOpen ? '2px solid #002BFF' : '2px solid #d1d5db',
           borderRadius: '6px',
           background: '#fff',
           color: isSelected || isAutoDisplay ? '#1f2937' : '#9ca3af',
@@ -89,7 +89,7 @@ export function RegionDropdown({ regions, value, onChange, placeholder = '전체
           height="16"
           viewBox="0 0 24 24"
           fill="none"
-          stroke={isOpen ? '#003da5' : '#9ca3af'}
+          stroke={isOpen ? '#002BFF' : '#9ca3af'}
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -121,7 +121,7 @@ export function RegionDropdown({ regions, value, onChange, placeholder = '전체
               style={{
                 padding: '13px 18px',
                 fontSize: '14px',
-                color: !value ? '#003da5' : '#374151',
+                color: !value ? '#002BFF' : '#374151',
                 fontWeight: !value ? 700 : 400,
                 backgroundColor: !value ? '#f0f5ff' : 'transparent',
                 borderBottom: '1px solid #f0f0f0',
@@ -152,7 +152,7 @@ export function RegionDropdown({ regions, value, onChange, placeholder = '전체
                   style={{
                     padding: '13px 18px',
                     fontSize: '14px',
-                    color: isActive ? '#003da5' : '#374151',
+                    color: isActive ? '#002BFF' : '#374151',
                     fontWeight: isActive ? 700 : 400,
                     backgroundColor: isActive ? '#f0f5ff' : 'transparent',
                     borderBottom: isLast ? 'none' : '1px solid #f0f0f0',
